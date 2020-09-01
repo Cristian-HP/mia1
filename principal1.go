@@ -183,7 +183,7 @@ func analisis(entrada string) {
 						auxlexema += string(entrada[k])
 						k++
 					} else if len(entrada) <= k+1 {
-						listoken = append(listoken, token{lexema: string(entrada[k]), tipo: 2, codigo: 10})
+						listoken = append(listoken, token{lexema: string(entrada[k]), tipo: 3, codigo: 10})
 						k++
 						auxlexema = ""
 						estado = 0
@@ -228,7 +228,8 @@ func analisis(entrada string) {
 					auxlexema += string(rune(entrada[k]))
 					k++
 				} else {
-					listoken = append(listoken, token{lexema: auxlexema, tipo: 1, codigo: 7})
+					tipotoken(auxlexema)
+					listoken = append(listoken, token{lexema: auxlexema, tipo: tipo, codigo: 7})
 					auxlexema = ""
 					estado = 0
 				}
@@ -262,7 +263,7 @@ func analisis(entrada string) {
 					auxlexema += string(entrada[k])
 					k++
 				} else {
-					listoken = append(listoken, token{lexema: auxlexema, tipo: 2, codigo: 8})
+					listoken = append(listoken, token{lexema: auxlexema, tipo: 3, codigo: 8})
 					auxlexema = ""
 					estado = 0
 				}
