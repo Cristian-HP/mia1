@@ -53,19 +53,6 @@ var tipo int64
 //sirve para la mierda de las carpetas
 
 func main() {
-	var ho int
-	fmt.Println("hola muneod")
-	fmt.Println("resultado: ")
-	fmt.Println(sumadoble(4, 5, 6))
-	ho = 23
-	fmt.Println(ho)
-	//res, res1 := sumadoble(5, 6, 7)
-	//crearDirectorioF("/home/mis juego")
-	//mKdisk(100, 'M', "/home/discos/", "primer.disk")
-	analisis("mkdis -path->/home/misdisco/repor.jpg -name->juan.dsk -size->15 -unit->M")
-
-	fmt.Println(listoken)
-
 	fmt.Println(":::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: ")
 	fmt.Println(":::::::::::::::::::::::::::::::: SISTEMA DE ARCHIVOS 2.0 ::::::::::::::::::::::::::::::: ")
 	fmt.Println("::::::::::::::::::::::::::::: Cristian            201603198 :::::::::::::::::::::::::::: ")
@@ -80,7 +67,8 @@ func main() {
 			break
 		} else {
 			//leer el comando
-
+			leercomando(eleccion)
+			fmt.Println(listoken)
 			eleccion = ""
 		}
 	}
@@ -250,7 +238,7 @@ func analisis(entrada string) {
 					auxlexema += string(rune(entrada[k]))
 					k++
 				} else {
-					listoken = append(listoken, token{lexema: auxlexema, tipo: 1, codigo: 7})
+					listoken = append(listoken, token{lexema: auxlexema, tipo: 3, codigo: 7})
 					auxlexema = ""
 					estado = 0
 				}
@@ -318,7 +306,7 @@ func analisis(entrada string) {
 		case 7:
 			{
 				if entrada[k] == '"' {
-					listoken = append(listoken, token{lexema: auxlexema, tipo: 2, codigo: 8})
+					listoken = append(listoken, token{lexema: auxlexema, tipo: 3, codigo: 8})
 					estado = 0
 					auxlexema = ""
 					k++
@@ -355,7 +343,7 @@ func analisis(entrada string) {
 					auxlexema += string(entrada[k])
 					k++
 				} else {
-					listoken = append(listoken, token{lexema: auxlexema, tipo: 2, codigo: 8})
+					listoken = append(listoken, token{lexema: auxlexema, tipo: 3, codigo: 8})
 					estado = 0
 					auxlexema = ""
 				}
@@ -376,7 +364,7 @@ func analisis(entrada string) {
 					auxlexema += string(entrada[k])
 					k++
 				} else {
-					listoken = append(listoken, token{lexema: auxlexema, tipo: 2, codigo: 7})
+					listoken = append(listoken, token{lexema: auxlexema, tipo: 3, codigo: 7})
 					estado = 0
 					auxlexema = ""
 				}
@@ -386,7 +374,7 @@ func analisis(entrada string) {
 			{
 				if entrada[k] == 'd' && entrada[k+1] == 's' && entrada[k+2] == 'k' {
 					auxlexema += "dsk"
-					listoken = append(listoken, token{lexema: auxlexema, tipo: 2, codigo: 5})
+					listoken = append(listoken, token{lexema: auxlexema, tipo: 3, codigo: 5})
 					estado = 0
 					auxlexema = ""
 					k += 3
@@ -402,7 +390,7 @@ func analisis(entrada string) {
 					k++
 					estado = 12
 				} else {
-					listoken = append(listoken, token{lexema: auxlexema, tipo: 2, codigo: 5})
+					listoken = append(listoken, token{lexema: auxlexema, tipo: 3, codigo: 5})
 					estado = 0
 					auxlexema = ""
 				}
@@ -490,7 +478,6 @@ func leercomando(entrada string) {
 	//obtengo la lista de valores
 	analisis(entrada) //debe existir alguna entrada
 	//formar el comando para ejecutar
-	//forma parte de la pueba
 
 	//llamar a ejecutar el comando
 }
