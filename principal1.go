@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"os"
@@ -18,6 +19,16 @@ type token struct {
 	lexema string
 	tipo   int64
 	codigo int64
+}
+
+type atributo struct {
+	name  string
+	valor string
+}
+type comando struct {
+	name    string
+	codigo  int64
+	lisAtri []atributo
 }
 
 type mBR struct {
@@ -48,11 +59,13 @@ type eBR struct {
 
 //este apartado es para las variable globales para teneer por como siem
 var listoken []token
+var listcomand []comando
 var tipo int64
 
 //sirve para la mierda de las carpetas
 
 func main() {
+	//leercomando("fdisk -sizE->10 -UniT->M -path->\"/home/archivos/fase 2/D1.dsk\" -type->P -fit->FF -name->\"PRI1\" fdisk -path->\"/home/archivos/fase 2/D1.dsk\" -sizE->10000 -fit->BF -name->\"PRI2\" \n FdisK -path->\"/home/archivos/fase 2/D1.dsk\" -type->E -name->\"EXT\" -sizE->51200 \n fdisk -type->L -sizE->5120 -Unit->K -path->\"/home/archivos/fase 2/D1.dsk\" -name->\"LOG1\"")
 	fmt.Println(":::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: ")
 	fmt.Println(":::::::::::::::::::::::::::::::: SISTEMA DE ARCHIVOS 2.0 ::::::::::::::::::::::::::::::: ")
 	fmt.Println("::::::::::::::::::::::::::::: Cristian            201603198 :::::::::::::::::::::::::::: ")
@@ -67,8 +80,9 @@ func main() {
 			break
 		} else {
 			//leer el comando
+			listoken = nil
+			listcomand = nil
 			leercomando(eleccion)
-			fmt.Println(listoken)
 			eleccion = ""
 		}
 	}
@@ -137,10 +151,6 @@ func mKdisk(size int64, unit byte, path string, name string) {
 	} else {
 		fmt.Println("Error al intentar crear el disco indicado")
 	}
-}
-
-func sumadoble(z int, x int, f int) (int, int) {
-	return z + x, x + f
 }
 
 func analisis(entrada string) {
@@ -380,6 +390,8 @@ func analisis(entrada string) {
 					k += 3
 				} else {
 					fmt.Println("NO se acepta extensiones diferente de dsk")
+					k++
+					estado = 0
 				}
 				break
 			}
@@ -429,7 +441,7 @@ func tipotoken(palabra string) {
 		tipo = 1
 	} else if strings.EqualFold(palabra, "login") {
 		tipo = 1
-	} else if strings.EqualFold(palabra, "loguot") {
+	} else if strings.EqualFold(palabra, "logout") {
 		tipo = 1
 	} else if strings.EqualFold(palabra, "mkgrp") {
 		tipo = 1
@@ -477,7 +489,71 @@ func tipotoken(palabra string) {
 func leercomando(entrada string) {
 	//obtengo la lista de valores
 	analisis(entrada) //debe existir alguna entrada
-	//formar el comando para ejecutar
+	armarcomando()
+	ejecutarcomando()
+}
 
-	//llamar a ejecutar el comando
+func armarcomando() {
+	var lisatri []atributo
+	var namecomando string
+	var nameatri string
+	var numcomand int = 1
+
+	for i, s := range listoken {
+		if s.tipo == 1 {
+			if i > numcomand {
+				listcomand = append(listcomand, comando{name: namecomando, codigo: 1, lisAtri: lisatri})
+				numcomand = i
+				lisatri = nil
+			}
+			namecomando = s.lexema
+		} else if s.tipo == 2 {
+			nameatri = s.lexema
+		} else if s.tipo == 3 {
+			lisatri = append(lisatri, atributo{name: nameatri, valor: s.lexema})
+		}
+	}
+	listcomand = append(listcomand, comando{name: namecomando, codigo: 1, lisAtri: lisatri})
+}
+
+func ejecutarcomando() {
+	fmt.Println(len(listcomand))
+	for _, com := range listcomand {
+		if strings.EqualFold(com.name, "exec") {
+			fmt.Println("entre a ejecu")
+			ejecutarEXEC(com.lisAtri)
+		} else {
+			//fmt.Println("esto es el de ejecutat")
+			fmt.Println(com.name)
+		}
+	}
+}
+
+func ejecutarEXEC(lisatributo []atributo) {
+	if len(lisatributo) == 1 {
+		if strings.EqualFold(lisatributo[0].name, "path") {
+			file, err := ioutil.ReadFile(lisatributo[0].valor) // just pass the file name
+			if err != nil {
+				fmt.Println("Error en archivo indicado no existe favor verificar")
+				fmt.Print(err)
+			} else {
+				entrada := string(file)
+				/*analisis(entrada)
+				fmt.Println(len(listoken))
+				armarcomando()
+				fmt.Println(listcomand)
+				fmt.Println(len(listcomand))*/
+				listcomand = nil
+				listoken = nil
+				lisatributo = nil
+				leercomando(entrada)
+			}
+
+		} else {
+			fmt.Println("el comando exec no admite el parametro -> " + lisatributo[0].name)
+		}
+
+	} else {
+		fmt.Println("Comando exec solo puede aceptar un parametro")
+	}
 }
