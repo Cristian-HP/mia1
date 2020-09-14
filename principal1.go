@@ -56,13 +56,98 @@ type eBR struct {
 	Partsize   int64
 	Partnext   int64
 	Partname   [16]byte
+	Formateada int64
 }
 
 type nodom struct {
-	Path   string
-	Name   string
-	Letra  byte
-	Numero int64
+	Path      string
+	Name      string
+	Letra     byte
+	Numero    int64
+	Inicio    int64
+	Tamano    int64
+	Formateda int64
+	datemont  string
+}
+
+type superBoot struct {
+	SbNombreHd                      [20]byte
+	SbArbolVirtualCount             int64
+	SbDetalleDirectorioCount        int64
+	SbInodosCount                   int64
+	SbBloquesCount                  int64
+	SbArbolVirtualFree              int64
+	Sbdetalledirectoriofree         int64
+	Sbinodosfree                    int64
+	Sbbloquesfree                   int64
+	Sbdatecreacion                  [19]byte
+	Sbdateultimomontaje             [19]byte
+	Sbmontajescount                 int64
+	Sbapbitmaparboldirectorio       int64
+	Sbaparboldirectorio             int64
+	Sbapbitmapdetalledirectorio     int64
+	Sbapdetalledirectorio           int64
+	Sbapbitmaptablainodo            int64
+	Sbaptablainodo                  int64
+	Sbapbitmapbloques               int64
+	Sbapbloques                     int64
+	Sbaplog                         int64
+	Sbsizestructarboldirectorio     int64
+	Sbsizestructdetalledirectorio   int64
+	Sbsizestructinodo               int64
+	Sbsizestructbloque              int64
+	Sbfirstfreebitarboldirectorio   int64
+	Sbfirstfreebitdetalledirectorio int64
+	Sbfirstfreebittablainodo        int64
+	Sbfirstfreebitbloques           int64
+	Sbmagicnum                      int64
+	Sbapcopysb                      int64
+}
+
+type virtualdirectorytree struct {
+	Avdfechacreacion            [19]byte
+	Avdnombredirectorio         [20]byte
+	Avdaparraysubdirectorios    [6]int64
+	Avdapdetalledirectorio      int64
+	Avdaparbolvirtualdirectorio int64
+	Avdproper                   int64
+	Iperm                       int64
+}
+
+type contentDetail struct {
+	ddfilenombre           [20]byte
+	ddfileappinodo         int64
+	ddfiledatecreacion     [20]byte
+	ddfiledatemodificacion [20]byte
+}
+type directoryDetail struct {
+	ddarrayfiles          [5]contentDetail
+	ddapdetalledirectorio int64
+}
+type inode struct {
+	Icountinodo            int64
+	Isizearchivo           int64
+	Icountbloquesasignados int64
+	Iarraybloques          [4]int64
+	Iapindirecto           int64
+	Iidproper              int64
+	Iperm                  int64
+}
+type dataBlock struct {
+	Dbdata [25]byte
+}
+type loog struct {
+	Logtipooperacion int64 /*  1. creacion de carpeta,  2. creacion de archivo */
+	Logtipo          byte
+	Op               [80]byte
+	IsP              bool
+	Lognombre        [20]byte
+	Logcontenido     [150]byte
+	Logfecha         [19]byte
+}
+type bitmapR struct {
+	nbite    int64
+	position int64
 }
 
 //este apartado es para las variable globales para teneer por como siem
@@ -560,6 +645,18 @@ func ejecutarcomando() {
 			ejecutarUNMOUNT(com.lisAtri)
 		} else if strings.EqualFold(com.name, "rep") {
 			ejecutarREP(com.lisAtri)
+		} else if strings.EqualFold(com.name, "MKFS") {
+			ejecutarMKFS(com.lisAtri)
+		} else if strings.EqualFold(com.name, "pause") {
+			println("Esta seguro que desea elimiar el disco (y/n)?  ")
+			reader := bufio.NewReader(os.Stdin)
+			entrada, _ := reader.ReadString('\n')
+			eleccion := strings.TrimRight(entrada, "\r\n")
+			if eleccion == "Y" || eleccion == "y" {
+			}
+
+		} else {
+			fmt.Println(com.name)
 		}
 	}
 }
@@ -782,6 +879,7 @@ func ejecutarFDISK(lisatributo []atributo) {
 				} else if bandelete {
 					if bandsize || bandadd {
 						fmt.Println("ERROR: Parametro ADD o Size no soportado con Delete definido")
+						//fmt.Println(tdelete)
 					} else {
 						eliminarParticion(path, name, tdelete)
 					}
@@ -919,6 +1017,47 @@ func ejecutarREP(lisatributo []atributo) {
 			}
 		} else {
 			fmt.Println("ERROR: parametro path no definido")
+		}
+	}
+}
+
+func ejecutarMKFS(lisatributo []atributo) {
+	var id string = ""
+	var tipo string = "FULL"
+	var banid bool = false
+	var errorb bool = false
+	for _, param := range lisatributo {
+		if strings.EqualFold(param.name, "id") {
+			id = param.valor
+			banid = true
+		} else if strings.EqualFold(param.name, "type") {
+			tipo = param.valor
+			if strings.EqualFold("fast", param.valor) || strings.EqualFold("full", param.valor) {
+
+			} else {
+				errorb = true
+				fmt.Println("ERROR: el parametro type no admite el valor -> " + param.valor)
+			}
+		} else if strings.EqualFold(param.name, "add") {
+			fmt.Println("Comando no funcional ")
+			errorb = true
+			break
+		} else if strings.EqualFold(param.name, "unit") {
+			fmt.Println("comando no funcional")
+			errorb = true
+			break
+		} else {
+			fmt.Println("ERROR: el comando mkfs no admite el parametro -> " + param.name)
+			errorb = true
+			break
+		}
+	}
+
+	if !errorb {
+		if banid {
+			formatearParticion(id, tipo)
+		} else {
+			fmt.Println("ERROR: El parametro id no esta definido")
 		}
 	}
 }
@@ -1326,6 +1465,7 @@ func crearParticonL(path string, name string, size int64, fit byte, unit byte) {
 						ebr.Partfit = fitp
 						ebr.Partsize = sizep
 						ebr.Partnext = -1
+						ebr.Formateada = -1
 						copy(ebr.Partname[:], name)
 						file.Seek(mbr.Particiones[numextend].Partstart, os.SEEK_SET)
 						seb := &ebr
@@ -1342,7 +1482,7 @@ func crearParticonL(path string, name string, size int64, fit byte, unit byte) {
 						pos, _ := file.Seek(0, os.SEEK_CUR)
 						//fmt.Print("posicion del file -> ")
 						//fmt.Println(pos)
-						if (ebr.Partnext == -1) || pos > (mbr.Particiones[numextend].Partsize+mbr.Particiones[numextend].Partstart) {
+						if (ebr.Partnext == -1) || (ebr.Partstatus == 'N' && ebr.Partsize >= sizep) || pos > (mbr.Particiones[numextend].Partsize+mbr.Particiones[numextend].Partstart) {
 							break
 						} else {
 							file.Seek(ebr.Partnext, os.SEEK_SET)
@@ -1354,10 +1494,11 @@ func crearParticonL(path string, name string, size int64, fit byte, unit byte) {
 						}
 
 					}
-
-					var suficiente int64 = ebr.Partstart + ebr.Partsize + sizep
-					if suficiente < mbr.Particiones[numextend].Partstart+mbr.Particiones[numextend].Partsize {
-						ebr.Partnext = ebr.Partsize + ebr.Partstart
+					if ebr.Partstatus == 'N' && ebr.Partsize > 10 {
+						ebr.Partstatus = 'S'
+						ebr.Partsize = sizep
+						copy(ebr.Partname[:], name)
+						ebr.Partfit = fitp
 						pos11, _ := file.Seek(0, os.SEEK_CUR)
 						var poss1 int64 = pos11 - int64(binary.Size(ebr))
 						//fmt.Println(poss1)
@@ -1366,26 +1507,41 @@ func crearParticonL(path string, name string, size int64, fit byte, unit byte) {
 						var binarioeb1 bytes.Buffer
 						binary.Write(&binarioeb1, binary.BigEndian, seb1)
 						escribirBytes(file, binarioeb1.Bytes())
-
-						file.Seek(ebr.Partsize+ebr.Partstart, os.SEEK_SET)
-
-						copy(ebr.Partname[:], name)
-						ebr.Partstatus = 'S'
-						ebr.Partfit = fitp
-						posfi, _ := file.Seek(0, os.SEEK_CUR)
-						ebr.Partstart = int64(posfi)
-						ebr.Partnext = -1
-						ebr.Partsize = sizep
-
-						sebfi := &ebr
-						var binariofi bytes.Buffer
-						binary.Write(&binariofi, binary.BigEndian, sebfi)
-						escribirBytes(file, binariofi.Bytes())
-
 						fmt.Println("Particion Logica Creada con Exito")
-
 					} else {
-						fmt.Println("El tamaño de la particon logica exede el espacio disponible")
+						var suficiente int64 = ebr.Partstart + ebr.Partsize + sizep
+						if suficiente < mbr.Particiones[numextend].Partstart+mbr.Particiones[numextend].Partsize {
+							ebr.Partnext = ebr.Partsize + ebr.Partstart
+							pos11, _ := file.Seek(0, os.SEEK_CUR)
+							var poss1 int64 = pos11 - int64(binary.Size(ebr))
+							//fmt.Println(poss1)
+							file.Seek(poss1, os.SEEK_SET)
+							seb1 := &ebr
+							var binarioeb1 bytes.Buffer
+							binary.Write(&binarioeb1, binary.BigEndian, seb1)
+							escribirBytes(file, binarioeb1.Bytes())
+
+							file.Seek(ebr.Partsize+ebr.Partstart, os.SEEK_SET)
+
+							copy(ebr.Partname[:], name)
+							ebr.Partstatus = 'S'
+							ebr.Partfit = fitp
+							posfi, _ := file.Seek(0, os.SEEK_CUR)
+							ebr.Partstart = int64(posfi)
+							ebr.Partnext = -1
+							ebr.Partsize = sizep
+							ebr.Formateada = -1
+
+							sebfi := &ebr
+							var binariofi bytes.Buffer
+							binary.Write(&binariofi, binary.BigEndian, sebfi)
+							escribirBytes(file, binariofi.Bytes())
+
+							fmt.Println("Particion Logica Creada con Exito")
+
+						} else {
+							fmt.Println("El tamaño de la particon logica exede el espacio disponible")
+						}
 					}
 
 				}
@@ -1402,22 +1558,23 @@ func agregarQuitarParticion(path string, name string, add int64, unit byte) {
 }
 
 func eliminarParticion(path string, name string, forma string) {
-	var indice int64 = -1
-	file, err := os.OpenFile(path, os.O_RDWR, os.ModePerm)
-	defer file.Close()
-	if err != nil {
-		fmt.Println("ERROR: No se encuetra el disco espefificado")
-		log.Fatal(err)
-	} else {
-		var montada = false
-		if !montada {
-			indice = buscarParticonPE(path, name)
-			if indice > -1 { // fue encontrada en las particones principales
-				println("Esta seguro que desea elimiar la particion del  disco (y/n)?  ")
-				reader := bufio.NewReader(os.Stdin)
-				entrada, _ := reader.ReadString('\n')
-				eleccion := strings.TrimRight(entrada, "\r\n")
-				if eleccion == "Y" || eleccion == "y" {
+	var indice int64 = buscarParticonPE(path, name)
+	var montada bool = montada12(name, path)
+	if !montada {
+
+		if indice > -1 { // fue encontrada en las particones principales
+
+			println("Esta seguro que desea elimiar la particion del  disco (y/n)?  ")
+			reader := bufio.NewReader(os.Stdin)
+			entrada, _ := reader.ReadString('\n')
+			eleccion := strings.TrimRight(entrada, "\r\n")
+			if eleccion == "Y" || eleccion == "y" {
+				file, err := os.OpenFile(path, os.O_RDWR, os.ModePerm)
+				defer file.Close()
+				if err != nil {
+					fmt.Println("ERROR: No se encuetra el disco espefificado")
+					log.Fatal(err)
+				} else {
 					mbr := mBR{}
 					file.Seek(0, 0)
 					var numb2 int = binary.Size(mbr)
@@ -1425,9 +1582,11 @@ func eliminarParticion(path string, name string, forma string) {
 					buffer := bytes.NewBuffer(data)
 					err = binary.Read(buffer, binary.BigEndian, &mbr)
 					var auxty byte = mbr.Particiones[indice].Parttype
-					if strings.EqualFold(forma, "FAST") {
-						mbr.Particiones[indice].Partstatus = 'd'
+
+					if strings.EqualFold(forma, "Fast") {
+						mbr.Particiones[indice].Partstatus = 'N'
 						copy(mbr.Particiones[indice].Partname[:], "")
+
 						file.Seek(0, 0)
 						s := &mbr
 						var binario2 bytes.Buffer
@@ -1440,44 +1599,144 @@ func eliminarParticion(path string, name string, forma string) {
 						}
 
 					} else {
-						mbr.Particiones[indice].Partstatus = 'd'
+						fmt.Print("El indice es -> ")
+						fmt.Println(indice)
+						mbr.Particiones[indice].Partstatus = 'N'
 						copy(mbr.Particiones[indice].Partname[:], "")
+
 						file.Seek(0, 0)
 						s := &mbr
 						var binario2 bytes.Buffer
 						binary.Write(&binario2, binary.BigEndian, s)
 						escribirBytes(file, binario2.Bytes())
-
 						file.Seek(mbr.Particiones[indice].Partstart, os.SEEK_SET)
-						var otro int8 = 0
-						var rebina bytes.Buffer
-						binary.Write(&rebina, binary.BigEndian, otro)
-						escribirBytes(file, rebina.Bytes())
-						rebina.Reset()
-						file.Seek(mbr.Particiones[indice].Partstart+2, os.SEEK_SET)
-						binary.Write(&rebina, binary.BigEndian, otro)
-						escribirBytes(file, rebina.Bytes())
+						var inn int64 = 0
+						var buffer1 [1024]byte
+						for inn = 0; inn < (mbr.Particiones[indice].Partsize / 1024); inn++ {
+							var rebina bytes.Buffer
+							binary.Write(&rebina, binary.BigEndian, buffer1)
+							escribirBytes(file, rebina.Bytes())
+						}
 						if auxty == 'P' {
 							fmt.Println("Particion Primaria Eliminada con Exito")
 						} else {
 							fmt.Println("Particion Extendida Eliminada con exito")
 						}
 					}
-
-				} else {
-					fmt.Println("Operacion de Eliminar Particion fue Abortada")
 				}
-
 			} else {
-				//hay que buscar en las logicas
+				fmt.Println("Operacion de Eliminar Particion fue Abortada")
 			}
 
 		} else {
-			fmt.Println("ERROR: No es posible eliminar la particion lla que se encuetra montada")
-			fmt.Println("Primero tendra que desmontar la particion")
+			//hay que buscar en las logicas
+			file, err := os.OpenFile(path, os.O_RDWR, os.ModePerm)
+			defer file.Close()
+			var indiceE int64 = -1
+			mbr := mBR{}
+			file.Seek(0, os.SEEK_SET)
+			var numb2 int = binary.Size(mbr)
+			data := leerBytes(file, numb2)
+			buffer := bytes.NewBuffer(data)
+			err = binary.Read(buffer, binary.BigEndian, &mbr)
+			var encontrada int = 0
+			var nametem [16]byte
+			for k := 0; k < 4; k++ {
+				if mbr.Particiones[k].Parttype == 'E' {
+					indiceE = int64(k)
+					break
+				}
+			}
+
+			if indiceE > -1 {
+				ebr := eBR{}
+				file.Seek(mbr.Particiones[indiceE].Partstart, os.SEEK_SET)
+				var numb3 int = binary.Size(ebr)
+				data1 := leerBytes(file, numb3)
+				buffer1 := bytes.NewBuffer(data1)
+				err = binary.Read(buffer1, binary.BigEndian, &ebr)
+				if ebr.Partsize != 0 {
+					file.Seek(mbr.Particiones[indiceE].Partstart, os.SEEK_SET)
+					copy(nametem[:], name)
+					for {
+						var numb3 int = binary.Size(ebr)
+						data1 := leerBytes(file, numb3)
+						buffer1 := bytes.NewBuffer(data1)
+						err = binary.Read(buffer1, binary.BigEndian, &ebr)
+						pos, err1 := file.Seek(0, os.SEEK_CUR)
+						if err != nil || err1 != nil || pos >= (mbr.Particiones[indiceE].Partsize+mbr.Particiones[indiceE].Partstart) {
+							break
+						}
+						if strings.EqualFold(bytesToString(ebr.Partname[:]), bytesToString(nametem[:])) {
+							encontrada = 1
+							break
+						}
+						if ebr.Partnext == -1 {
+							break
+						} else {
+							file.Seek(ebr.Partnext, os.SEEK_SET)
+						}
+					}
+					if encontrada == 1 {
+						println("Esta seguro que desea elimiar la particion del  disco (y/n)?  ")
+						reader := bufio.NewReader(os.Stdin)
+						entrada, _ := reader.ReadString('\n')
+						eleccion := strings.TrimRight(entrada, "\r\n")
+
+						if strings.EqualFold(eleccion, "y") {
+							if strings.EqualFold(forma, "FAST") {
+								ebr.Partstatus = 'N'
+								copy(ebr.Partname[:], "")
+								pos11, _ := file.Seek(0, os.SEEK_CUR)
+								var poss1 int64 = pos11 - int64(binary.Size(ebr))
+								file.Seek(poss1, os.SEEK_SET)
+								seb1 := &ebr
+								var binarioeb1 bytes.Buffer
+								binary.Write(&binarioeb1, binary.BigEndian, seb1)
+								escribirBytes(file, binarioeb1.Bytes())
+								fmt.Println("La Particon Logica a sido eliminada exitosamente ")
+							} else {
+								ebr.Partstatus = 'N'
+								copy(ebr.Partname[:], "")
+								pos11, _ := file.Seek(0, os.SEEK_CUR)
+								var poss1 int64 = pos11 - int64(binary.Size(ebr))
+								file.Seek(poss1, os.SEEK_SET)
+								seb1 := &ebr
+								var binarioeb1 bytes.Buffer
+								binary.Write(&binarioeb1, binary.BigEndian, seb1)
+								escribirBytes(file, binarioeb1.Bytes())
+								file.Seek(ebr.Partstart, os.SEEK_SET)
+								var inn int64 = 0
+								var buffer1 [1024]byte
+								for inn = 0; inn < (ebr.Partsize / 1024); inn++ {
+									var rebina bytes.Buffer
+									binary.Write(&rebina, binary.BigEndian, buffer1)
+									escribirBytes(file, rebina.Bytes())
+								}
+								fmt.Println("La Particon Logica a sido eliminada exitosamente ")
+
+							}
+						} else {
+							fmt.Println("Operacion de Eliminar particion Cancelada ")
+
+						}
+
+					} else {
+						fmt.Println("ERROR NO se encuetra la particon a eliminar ")
+
+					}
+
+				}
+
+			} else {
+				fmt.Println("ERROR No se Encuetra la particion a eliminar")
+			}
 		}
+
+	} else {
+		fmt.Println("ERROR: No es posible eliminar la particion lla que se encuetra montada")
+		fmt.Println("Primero tendra que desmontar la particion")
 	}
-	buscarParticonPE(path, name)
 }
 func buscarParticonPE(path string, name string) int64 {
 	file, err := os.OpenFile(path, os.O_RDWR, os.ModePerm)
@@ -1568,6 +1827,9 @@ func buscarParticionL(path string, name string) int64 {
 func mount(path string, name string) {
 	//fmt.Println(path)
 	//fmt.Println(name)
+	var iniciop int64 = -1
+	var tamanop int64 = -1
+	var formateada int64 = -1
 	var indicePar int64 = buscarParticonPE(path, name)
 	if indicePar > -1 {
 		file, err := os.OpenFile(path, os.O_RDWR, os.ModePerm)
@@ -1584,6 +1846,9 @@ func mount(path string, name string) {
 			err = binary.Read(buffer, binary.BigEndian, &mbr)
 
 			mbr.Particiones[indicePar].Partstatus = 'M'
+			iniciop = mbr.Particiones[indicePar].Partstart
+			tamanop = mbr.Particiones[indicePar].Partsize
+			formateada = mbr.Particiones[indicePar].Formateada
 
 			file.Seek(0, 0)
 			s := &mbr
@@ -1599,7 +1864,9 @@ func mount(path string, name string) {
 			} else {
 				var numero int64 = buscarN(path)
 				var id string = "vd" + string(letra) + strconv.Itoa(int(numero))
-				nodo1 := nodom{Path: path, Name: name, Numero: numero, Letra: letra}
+				current := time.Now()
+				var fecha string = current.Format("2006-01-02 15:04:05")
+				nodo1 := nodom{Path: path, Name: name, Numero: numero, Letra: letra, Inicio: iniciop, Tamano: tamanop, Formateda: formateada, datemont: fecha}
 				listamontada[id] = nodo1
 				fmt.Println("Particon Montada con Exito")
 				//fmt.Println(listamontada)
@@ -1607,6 +1874,7 @@ func mount(path string, name string) {
 			}
 
 		}
+		file.Close()
 
 	} else {
 		indicePar = buscarParticionL(path, name)
@@ -1623,7 +1891,9 @@ func mount(path string, name string) {
 				data := leerBytes(file, numb2)
 				buffer := bytes.NewBuffer(data)
 				err = binary.Read(buffer, binary.BigEndian, &ebr)
-
+				iniciop = ebr.Partstart
+				tamanop = ebr.Partsize
+				formateada = ebr.Formateada
 				ebr.Partstatus = 'M'
 
 				file.Seek(indicePar, os.SEEK_SET)
@@ -1640,7 +1910,9 @@ func mount(path string, name string) {
 				} else {
 					var numero int64 = buscarN(path)
 					var id string = "vd" + string(letra) + strconv.Itoa(int(numero))
-					nodo1 := nodom{Path: path, Name: name, Numero: numero, Letra: letra}
+					current := time.Now()
+					var fecha string = current.Format("2006-01-02 15:04:05")
+					nodo1 := nodom{Path: path, Name: name, Numero: numero, Letra: letra, Inicio: iniciop, Tamano: tamanop, Formateda: formateada, datemont: fecha}
 					listamontada[id] = nodo1
 					fmt.Println("Particon Logica Montada con Exito")
 					//fmt.Println(listamontada)
@@ -1648,6 +1920,7 @@ func mount(path string, name string) {
 				}
 
 			}
+			file.Close()
 		} else {
 			fmt.Println("ERROR: No se encuetra la particon a montar")
 		}
@@ -1692,8 +1965,180 @@ func mostrarMon() {
 	}
 }
 
-func reportedisco(path string, carpeta string, salida string, extend string) {
+func montada12(name string, path string) bool {
+	for _, valor := range listamontada {
+		if strings.EqualFold(valor.Name, name) && strings.EqualFold(valor.Path, path) {
+			return true
+		}
+	}
+	return false
+}
 
+//Reportes
+func reportedisco(path string, carpeta string, salida string, extend string) {
+	crearDirectorioF(carpeta)
+	mbr := mBR{}
+	var dotText string = ""
+	//fmt.Println(pathT)
+	file, err := os.OpenFile(path, os.O_RDONLY, os.ModePerm)
+	defer file.Close()
+	if err != nil {
+		fmt.Println("ERROR: Al crear el Reporte MBR disco no encontrado")
+	} else {
+		dotText = "digraph G{ \n\n"
+		dotText += "disck [\n    shape=box\n    label=<\n"
+		dotText += "<table border='0' cellborder='2' width='600' height=\"200\" color='LIGHTSTEELBLUE'>\n"
+		dotText += "     <tr>\n"
+		dotText += "     <td height='200' width='100'> MBR </td>\n"
+
+		file.Seek(0, os.SEEK_SET)
+		var numb2 int = binary.Size(mbr)
+		data := leerBytes(file, numb2)
+		buffer := bytes.NewBuffer(data)
+		err = binary.Read(buffer, binary.BigEndian, &mbr)
+		var capacida float64 = float64(mbr.Mbrtamano)
+		var usingspace float64 = 0.0
+		for i := 0; i < 4; i++ {
+			var partial float64 = float64(mbr.Particiones[i].Partsize)
+			if mbr.Particiones[i].Partstart != -1 {
+				var real float64 = (partial / capacida) * 100
+				var auxP float64 = (real * 500) / 100
+				usingspace += real
+
+				if mbr.Particiones[i].Partstatus != 'N' && mbr.Particiones[i].Partstatus != 'd' {
+					if mbr.Particiones[i].Parttype == 'P' {
+						dotText += "     <td height='200' width='" + strconv.FormatFloat(auxP, 'f', 2, 64) + "'>PRIMARIA <br/> Ocupado: " + strconv.FormatFloat(real, 'f', 2, 64) + "% </td>\n"
+						if i != 3 {
+							var parcial1 float64 = float64(mbr.Particiones[i].Partstart + mbr.Particiones[i].Partsize)
+							var parcial2 float64 = float64(mbr.Particiones[i+1].Partstart)
+							if mbr.Particiones[i+1].Partstart != -1 {
+								if (parcial1 - parcial2) != 0 {
+									var fragmento float64 = parcial2 - parcial1
+									var auxreal float64 = (fragmento * 100) / capacida
+									var auxp float64 = (auxreal * 500) / 100
+									dotText += "     <td height='200' width='" + strconv.FormatFloat(auxp, 'f', 2, 64) + "'>LIBRE<br/> Ocupado: " + strconv.FormatFloat(auxreal, 'f', 2, 64) + "% </td>\n"
+
+								}
+							}
+						} else {
+							var parcial1 float64 = float64(mbr.Particiones[i].Partstart + mbr.Particiones[i].Partsize)
+							if (capacida - parcial1) != 0 {
+								var libre float64 = (capacida - parcial1)
+								real := (libre * 100) / capacida
+								aux := (real * 500) / 100
+								dotText += "     <td height='200' width='" + strconv.FormatFloat(aux, 'f', 2, 64) + "'>LIBRE<br/> Ocupado: " + strconv.FormatFloat(real, 'f', 2, 64) + "% </td>\n"
+							}
+						}
+
+					} else {
+						ebr := eBR{}
+						dotText += "     <td  height='200' width='" + strconv.FormatFloat(auxP, 'f', 2, 64) + "'>\n     <table border='0'  height='200' WIDTH='" + strconv.FormatFloat(auxP, 'f', 2, 64) + "' cellborder='1'>\n"
+						dotText += "     <tr>  <td height='50' colspan='15'>EXTENDIDA</td>  </tr>\n     <tr>\n"
+
+						file.Seek(mbr.Particiones[i].Partstart, os.SEEK_SET)
+						var numb3 int = binary.Size(ebr)
+						data1 := leerBytes(file, numb3)
+						buffer1 := bytes.NewBuffer(data1)
+						err = binary.Read(buffer1, binary.BigEndian, &ebr)
+
+						if ebr.Partsize != -1 {
+							file.Seek(mbr.Particiones[i].Partstart, os.SEEK_SET)
+							for {
+								var numb3 int = binary.Size(ebr)
+								data1 := leerBytes(file, numb3)
+								buffer1 := bytes.NewBuffer(data1)
+								err = binary.Read(buffer1, binary.BigEndian, &ebr)
+								pos, err1 := file.Seek(0, os.SEEK_CUR)
+								if err != nil || err1 != nil || pos >= (mbr.Particiones[i].Partsize+mbr.Particiones[i].Partstart) {
+									break
+								}
+								partial = float64(ebr.Partsize)
+								real = (partial * 100) / capacida
+								if real != 0 {
+									if ebr.Partstatus != 'N' && ebr.Partstatus != 'd' {
+										dotText += "     <td height='140'>EBR</td>\n"
+										dotText += "     <td height='140'>LOGICA<br/>Ocupado: " + strconv.FormatFloat(real, 'f', 2, 64) + "% </td>\n"
+									} else {
+										dotText += "      <td height='150'>LIBRE 1 <br/> Ocupado: " + strconv.FormatFloat(real, 'f', 2, 64) + "% </td>\n"
+									}
+									if ebr.Partnext == -1 {
+										partial = float64((mbr.Particiones[i].Partstart + mbr.Particiones[i].Partsize) - (ebr.Partstart + ebr.Partsize))
+										real = (partial * 100) / capacida
+										if real != 0 {
+											dotText += "     <td height='150'>LIBRE 2<br/> Ocupado: " + strconv.FormatFloat(real, 'f', 2, 64) + "% </td>\n"
+										}
+										break
+									} else {
+										file.Seek(ebr.Partnext, os.SEEK_SET)
+									}
+								}
+							}
+
+						} else {
+							dotText += "     <td height='150'> Ocupado: " + strconv.FormatFloat(real, 'f', 2, 64) + "%</td>"
+						}
+
+						dotText += "     </tr>\n     </table>\n     </td>\n"
+						//verificar fragmentacion
+						if i != 3 {
+							var parcial1 float64 = float64(mbr.Particiones[i].Partstart + mbr.Particiones[i].Partsize)
+							var parcial2 float64 = float64(mbr.Particiones[i+1].Partstart)
+							if mbr.Particiones[i+1].Partstart != -1 {
+								if (parcial1 - parcial2) != 0 {
+									fragmento := parcial2 - parcial1
+									auxreal := (fragmento * 100) / capacida
+									auxp := (auxreal * 500) / 100
+									dotText += "     <td height='200' width='" + strconv.FormatFloat(auxp, 'f', 2, 64) + "'>LIBRE<br/> Ocupado: " + strconv.FormatFloat(auxreal, 'f', 2, 64) + "%</td>\n"
+
+								}
+							}
+						} else {
+							var parcial1 float64 = float64(mbr.Particiones[i].Partstart + mbr.Particiones[i].Partsize)
+							var capacidambr float64 = capacida + float64(binary.Size(mbr))
+							if (capacidambr - parcial1) != 0 {
+								libre := (capacidambr - parcial1) + float64(binary.Size(mbr))
+								real := (libre * 100) / capacida
+								aux := (real * 500) / 100
+								dotText += "     <td height='200' width='" + strconv.FormatFloat(aux, 'f', 2, 64) + "'>LIBRE<br/> Ocupado: " + strconv.FormatFloat(real, 'f', 2, 64) + "%</td>\n"
+							}
+						}
+
+					}
+
+				} else {
+					dotText += "     <td height='200' width='" + strconv.FormatFloat(auxP, 'f', 2, 64) + "'>LIBRE <br/> Ocupado: " + strconv.FormatFloat(real, 'f', 2, 64) + "%</td>\n"
+				}
+
+			}
+
+		}
+		if mbr.Particiones[3].Partstatus == 'N' {
+			dotText += "     <td height=200> ESPACIO LIBRE <br/> Ocupado:" + strconv.FormatFloat(100-usingspace, 'f', 2, 64) + " %\n     </td>"
+		}
+
+		dotText += "     </tr> \n     </table>        \n>];\n\n}"
+		//comienzo de escritura y generacion del reporte en graphivz
+
+		dotR, _ := os.OpenFile("Rdisco.dot", os.O_CREATE|os.O_WRONLY, os.ModePerm)
+		defer dotR.Close()
+
+		_, err := dotR.WriteString(dotText)
+		if err != nil {
+			panic(err)
+		}
+		//comando1 := "dot -T" + extend + " MBR1.dot -o " + salida
+		arg1 := "-T" + extend
+		cmd := exec.Command("dot", arg1, "Rdisco.dot", "-o", salida) // no need to call Output method here
+		err1 := cmd.Run()
+		if err1 != nil {
+			fmt.Println("Entra por algun erro del cmd")
+			log.Fatal(err)
+		}
+		fmt.Println("REPORTE Disco generado con exito")
+		//fmt.Println(extend)
+		//fmt.Println(salida)
+
+	}
 }
 
 func reportembr(path string, carpeta string, salida string, extend string) {
@@ -1792,6 +2237,8 @@ func reportembr(path string, carpeta string, salida string, extend string) {
 
 		auxdot += "}\n"
 
+		//comienzo de escritura y generacion del reporte en graphivz
+
 		dotA, _ := os.OpenFile("MBR1.dot", os.O_CREATE|os.O_WRONLY, os.ModePerm)
 		defer dotA.Close()
 
@@ -1808,7 +2255,122 @@ func reportembr(path string, carpeta string, salida string, extend string) {
 			log.Fatal(err)
 		}
 		fmt.Println("REPORTE MBR generado con exito")
-		fmt.Println(extend)
-		fmt.Println(salida)
+		//fmt.Println(extend)
+		//fmt.Println(salida)
+	}
+}
+
+func calculateStructures(partitionsize int64) int64 {
+	sb := superBoot{}
+	vd := virtualdirectorytree{}
+	dd := directoryDetail{}
+	ind := inode{}
+	db := dataBlock{}
+	logg1 := loog{}
+	var dividend int64 = partitionsize - (2 * int64(binary.Size(sb)))
+	var divider int64 = 27 + int64(binary.Size(vd)) + int64(binary.Size(dd)) + (5*int64(binary.Size(ind)) + (20 * int64(binary.Size(db))) + int64(binary.Size(logg1)))
+	n := dividend / divider
+	return n
+}
+
+func rebiteBitmap(file *os.File, inicio int64, fin int64) bitmapR {
+	var bit byte
+	returnBy := bitmapR{nbite: -1, position: -1}
+	var count int64 = 0
+	for {
+		if inicio >= fin {
+			break
+		}
+		file.Seek(inicio, os.SEEK_SET)
+		b1 := make([]byte, 1)
+		_, err := file.Read(b1)
+		if err != nil {
+			break
+		}
+		bit = b1[0]
+		if bit == '0' {
+			returnBy.position = count
+			returnBy.nbite = inicio
+			return returnBy
+		}
+		inicio++
+		count++
+	}
+	return returnBy
+}
+
+func formatearParticion(id string, tipo string) {
+	datosP, ok := listamontada[id]
+	if ok {
+		if datosP.Formateda == -1 {
+			mbr := mBR{}
+			file, err := os.OpenFile(datosP.Path, os.O_RDWR, os.ModePerm)
+			defer file.Close()
+			if err != nil {
+				fmt.Println("ERROR: disco no encontrado")
+			} else {
+				file.Seek(0, os.SEEK_SET)
+				var numb2 int = binary.Size(mbr)
+				data := leerBytes(file, numb2)
+				buffer := bytes.NewBuffer(data)
+				err = binary.Read(buffer, binary.BigEndian, &mbr)
+				var calc int64 = calculateStructures(datosP.Tamano)
+				sb := superBoot{}
+				var readSb int64 = 0
+				//var dataStart int64 = 0
+				copy(sb.SbNombreHd[:], datosP.Name)
+
+				readSb = datosP.Inicio + int64(binary.Size(sb))
+				//dataStart = datosP.Inicio
+
+				sb.SbArbolVirtualCount = calc
+				sb.SbDetalleDirectorioCount = calc
+				sb.SbInodosCount = 5 * calc
+				sb.SbBloquesCount = 20 * calc
+				sb.SbArbolVirtualFree = sb.SbArbolVirtualCount
+				sb.Sbdetalledirectoriofree = sb.SbDetalleDirectorioCount
+				sb.Sbinodosfree = sb.SbInodosCount
+				sb.Sbbloquesfree = sb.SbBloquesCount
+				current := time.Now()
+				var fecha string = current.Format("2006-01-02 15:04:05")
+				copy(sb.Sbdatecreacion[:], fecha)
+				copy(sb.Sbdateultimomontaje[:], datosP.datemont)
+				sb.Sbmontajescount = 0
+				sb.Sbapbitmaparboldirectorio = readSb
+				sb.Sbaparboldirectorio = sb.Sbapbitmaparboldirectorio + calc
+				vdt := virtualdirectorytree{}
+				sb.Sbapbitmapdetalledirectorio = sb.Sbaparboldirectorio + (calc * int64(binary.Size(vdt)))
+
+				sb.Sbapdetalledirectorio = sb.Sbapbitmapdetalledirectorio + calc
+				DDir := directoryDetail{}
+				sb.Sbapbitmaptablainodo = sb.Sbapdetalledirectorio + (calc * int64(binary.Size(DDir)))
+				sb.Sbaptablainodo = sb.Sbapbitmaptablainodo + (5 * calc)
+				Ind := inode{}
+				sb.Sbapbitmapbloques = sb.Sbaptablainodo + (5 * calc * int64(binary.Size(Ind)))
+				sb.Sbapbloques = sb.Sbapbitmapbloques + (20 * calc)
+
+				sb.Sbaptablainodo = sb.Sbapbitmaptablainodo + (5 * calc)
+				sb.Sbapbitmapbloques = sb.Sbaptablainodo + (5 * calc * int64(binary.Size(Ind)))
+				sb.Sbapbloques = sb.Sbapbitmapbloques + (20 * calc)
+				Dblock := dataBlock{}
+				sb.Sbaplog = sb.Sbapbloques + (20 * calc * int64(binary.Size(Dblock)))
+				logg1 := loog{}
+				sb.Sbapcopysb = sb.Sbaplog + (calc * int64(binary.Size(logg1)))
+				sb.Sbsizestructarboldirectorio = int64(binary.Size(vdt))
+				sb.Sbsizestructdetalledirectorio = int64(binary.Size(DDir))
+				sb.Sbsizestructinodo = int64(binary.Size(Ind))
+				sb.Sbsizestructbloque = int64(binary.Size(Dblock))
+				sb.Sbfirstfreebitarboldirectorio = sb.Sbapbitmaparboldirectorio
+				sb.Sbfirstfreebitdetalledirectorio = sb.Sbapbitmapdetalledirectorio
+				sb.Sbfirstfreebittablainodo = sb.Sbapbitmaptablainodo
+				sb.Sbfirstfreebitbloques = sb.Sbapbitmapbloques
+				sb.Sbmagicnum = 201603198
+
+			}
+		} else {
+			fmt.Println("ERROR: la particion lla tiene formato")
+		}
+	} else {
+		fmt.Println("ERROR: No se encuetra el id en las particiones montadas")
 	}
 }
